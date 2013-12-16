@@ -1,0 +1,169 @@
+<!--**************************************************************************
+ * Copyright (c) 2013, NuoDB, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of NuoDB, Inc. nor the names of its contributors may
+ *       be used to endorse or promote products derived from this software
+ *       without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL NUODB, INC. BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ **************************************************************************-->
+<project name="DiffByRegex" default="cleanBuildAndTest" basedir=".">
+
+    <target name="init">
+        <property file="../../build.properties"/>
+
+        <property name="default.main.class" value="com.nuodb.diff.FilterByRegex"/>
+        <property name="test.main.class" value="com.nuodb.diff.TestDiff"/>
+        <property name="f1" value="/tmp/f1"/>
+        <property name="f2" value="/tmp/f2"/>
+        <property name="patchfile" value="/tmp/patchfile"/>
+
+        <property name="diff" value="diff"/>
+        <property name="patch" value="patch"/>
+        <property name="sed" value="sed"/>
+        <!-- This sed script converts a string into a file of single-character lines. -->
+        <property name="sedscript">
+s/./&amp;\
+/g
+        </property>
+
+        <!-- Prep the build environment -->
+        <mkdir dir="classes"/>
+    </target>
+
+    <target name="clean">
+        <delete dir="classes"/>
+    </target>
+
+    <!--  Run an individual test. -->
+    <target name="test" depends="init,compile,run_test"/>
+
+    <!--  Compile all sources. -->
+    <target name="compile" depends="init">
+        <javac srcdir="src" destdir="classes" includes="**/*.java" debug="true"/>
+    </target>
+
+    <!--  Run a test. -->
+    <target name="run_test">
+
+        <exec executable="${sed}" inputstring="${s1}" output="${f1}" failonerror="yes">
+            <arg line="${sedscript}"/>
+        </exec>
+        <exec executable="${sed}" inputstring="${s2}" output="${f2}" failonerror="yes">
+            <arg line="${sedscript}"/>
+        </exec>
+
+        <java
+            classname="${test.main.class}"
+            fork="yes"
+            failonerror="no"
+            output="${patchfile}"
+            resultproperty="testdiff.result"
+            >
+            <arg value="${s1}"/>
+            <arg value="${s2}"/>
+            <arg value="-c"/>
+            <jvmarg value="-ea"/>
+            <jvmarg value="-Xmx2048M"/>
+			<classpath>
+				<pathelement path="classes"/>
+			</classpath>
+        </java>
+
+        <exec executable="${patch}" failonerror="yes" input="${patchfile}">
+            <arg line="--silent"/>
+            <arg line="${f1}"/>
+        </exec>
+
+        <exec executable="${diff}" failonerror="yes">
+            <arg line="${f1}"/>
+            <arg line="${f2}"/>
+        </exec>
+
+    </target>
+
+    <!-- Build the Java source and run the test suite. -->
+    <target name="cleanBuildAndTest" depends="clean,runTests"/>
+
+    <!-- Run an assortment of test inputs. -->
+    <target name="runTests" depends="compile">
+        <echo>Beginning acceptance testing.</echo>
+        <antcall target="test"> <param name="s1" value="aaaa"/> <param name="s2" value="aaab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaaa"/> <param name="s2" value="abab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaaa"/> <param name="s2" value="accb"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaaa"/> <param name="s2" value="aaabbb"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abaa"/> <param name="s2" value="aaaa"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaaa"/> <param name="s2" value="aaab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabaa"/> <param name="s2" value="aaab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabaa"/> <param name="s2" value="aaaba"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabaa"/> <param name="s2" value="aaaba"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabaac"/> <param name="s2" value="aaabac"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeff"/> <param name="s2" value="aaaba"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeff"/> <param name="s2" value="aaabacdefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeff"/> <param name="s2" value="aaabacdefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffggg"/> <param name="s2" value="aaabacdefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffggg"/> <param name="s2" value="aaacdefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffggg"/> <param name="s2" value="aabcdefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffggg"/> <param name="s2" value="aabcdaefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffgga4ssdg"/> <param name="s2" value="aadsabcasdfdaxefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffgga4ssdg"/> <param name="s2" value="aadsabcasdfdaxefgs"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aaabbbbccddddeeffgga4ssdg"/> <param name="s2" value="aadsabcasdfdaxefgss"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefg"/> <param name="s2" value="aaxbcdehighfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefg"/> <param name="s2" value="aaxbcdehighfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefgh"/> <param name="s2" value="aaxbcdehighfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefgf"/> <param name="s2" value="aaxbcdehighfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefeg"/> <param name="s2" value="aaxbcdehighfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefgd"/> <param name="s2" value="aaxbcdehighdsfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdeadbefg"/> <param name="s2" value="aaxbcdehighdsfegdg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefg"/> <param name="s2" value="abcd"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefg"/> <param name="s2" value="abcd"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abbbbbbccccdddeeeeffghiijkkkkkkkkllmmmmm"/> <param name="s2" value="abcdefghijkl"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abbbbbbccccdddeeeeffghiijkkkkkkkkllmmmmm"/> <param name="s2" value="abcdefghijkl"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abbbbbbccccdddeeeeffghiijkkkkkkkkllmmmmm"/> <param name="s2" value="axcdefghijkl"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdghi"/> <param name="s2" value=" abcdefghijk"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcxdghi"/> <param name="s2" value=" abcdefghijk"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcxdghik"/> <param name="s2" value=" abcdefghijk"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcxdghiklmnopq"/> <param name="s2" value=" abcdefghijk"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcxdghiklmnopq"/> <param name="s2" value=" abcdefghijkl"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcxdghik"/> <param name="s2" value=" abcdefghijk"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefghijklmnop"/> <param name="s2" value="axbcedfghklmpop"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefghijklllmnop"/> <param name="s2" value="axbcedfghklmmmmpop"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefghijklllmnop"/> <param name="s2" value="axbcedfghklmmmmpo"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefghijklllmnop"/> <param name="s2" value="axbcedfghklmmmmpo"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdefghijklllmnop"/> <param name="s2" value="axbcedfghklmmmmpo"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abc"/> <param name="s2" value="abc"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abc"/> <param name="s2" value="ab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abc"/> <param name="s2" value="abcc"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="abccdd"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="ab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="ab"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="abc"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="abcd"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="abcde"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcd"/> <param name="s2" value="abcdef"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdf"/> <param name="s2" value="abcdef"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdgf"/> <param name="s2" value="abcdef"/> </antcall>
+        <antcall target="test"> <param name="s1" value="abcdxf"/> <param name="s2" value="abcdef"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aabbcccdghfc"/> <param name="s2" value="abcdefg"/> </antcall>
+        <antcall target="test"> <param name="s1" value="aabbcccdghfc"/> <param name="s2" value="abcdefg"/> </antcall>
+    </target>
+
+</project>
