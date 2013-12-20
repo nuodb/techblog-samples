@@ -130,10 +130,16 @@ public class DiffEngine<T extends Comparable<T>>
 
             } else {
 
-                // TODO: Explain why this condition is known to hold.
+                // This condition is known to hold, because:
+                // - At least one of i and j is > 0.
+                // - If i were 0, then j must be > 0 and the branch above would be taken.
+                //   Therefore, i is > 0.
+                // - If j is not zero, and since we know i is not zero: lcs[i][j-1] >= lcs[i-1][j]
+                //   must be false or the branch above would be taken.
+                //   Its inverse, lcs[i][j-1] < lcs[i-1][j], is therefore true.
+                // - Therefore, either j is zero or lcs[i][j-1] < lcs[i-1][j]) is true.
                 assert (i > 0 && (j == 0 || lcs[i][j-1] < lcs[i-1][j]));
 
-                // Since this final branch covers... 
                 differences.add(new Difference(i,j, Difference.EditType.Remove, sequenceA.get(i-1)));
                 i--;
             }
